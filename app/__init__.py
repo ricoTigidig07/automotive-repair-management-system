@@ -71,7 +71,7 @@ def _configure_database(app, config):
             database_url = database_url.replace('postgres://', 'postgresql://', 1)
         app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     elif app.config.get('SQLALCHEMY_DATABASE_URI'):
-        # Config class already set a URI (e.g. TestingConfig uses sqlite)
+        # Config class already set a URI (e.g. sqlite:///app.db or testing DB)
         pass
     else:
         db_user = config.DB_USER
@@ -86,15 +86,25 @@ def _configure_database(app, config):
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SQLALCHEMY_ECHO'] = app.config.get('DEBUG', False)
 
+    db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
     sslmode = getattr(config, 'DB_SSLMODE', 'require')
-    if sslmode and sslmode != 'disable':
-        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-            'connect_args': {'sslmode': sslmode},
+
+    # Only apply PostgreSQL engine options to PostgreSQL databases
+    if db_uri.startswith('postgresql://'):
+        engine_options = {
             'pool_pre_ping': True,
             'pool_size': 5,
             'max_overflow': 10,
             'pool_recycle': 300,
         }
+
+        if sslmode and sslmode != 'disable':
+            engine_options['connect_args'] = {'sslmode': sslmode}
+
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = engine_options
+    else:
+        # SQLite should not receive PostgreSQL-specific options like sslmode
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {}
 
 
 def init_extensions(app):
@@ -130,10 +140,16 @@ def register_blueprints(app):
     app.register_blueprint(administrator_bp, url_prefix='/administrator')
 
     # Also register tenant-scoped versions
-    app.register_blueprint(technician_bp, url_prefix='/org/<tenant_slug>/technician',
-                          name='tenant_technician')
-    app.register_blueprint(administrator_bp, url_prefix='/org/<tenant_slug>/administrator',
-                          name='tenant_administrator')
+    app.register_blueprint(
+        technician_bp,
+        url_prefix='/org/<tenant_slug>/technician',
+        name='tenant_technician'
+    )
+    app.register_blueprint(
+        administrator_bp,
+        url_prefix='/org/<tenant_slug>/administrator',
+        name='tenant_administrator'
+    )
 
     # Register auth blueprint
     try:
@@ -146,8 +162,11 @@ def register_blueprints(app):
     try:
         from app.views.billing import billing_bp
         app.register_blueprint(billing_bp, url_prefix='/billing')
-        app.register_blueprint(billing_bp, url_prefix='/org/<tenant_slug>/billing',
-                              name='tenant_billing')
+        app.register_blueprint(
+            billing_bp,
+            url_prefix='/org/<tenant_slug>/billing',
+            name='tenant_billing'
+        )
     except ImportError:
         pass
 
@@ -179,13 +198,16 @@ def register_security_middleware(app):
     def inject_notifications():
         """Inject notification counts for the navbar"""
         from flask import session
+
         notification_data = {
             'notification_count': 0,
             'overdue_bills_count': 0,
             'unpaid_bills_count': 0,
         }
+
         if not session.get('logged_in'):
             return notification_data
+
         try:
             from app.services.billing_service import BillingService
             billing_service = BillingService()
@@ -198,4 +220,5 @@ def register_security_middleware(app):
             notification_data['notification_count'] = overdue_count + unpaid_count
         except Exception:
             pass
+
         return notification_data
