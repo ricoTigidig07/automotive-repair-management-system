@@ -177,6 +177,13 @@ def register_blueprints(app):
     except ImportError:
         pass
 
+    # Register API blueprint for desktop client
+    try:
+        from app.views.api import api_bp
+        app.register_blueprint(api_bp)
+    except ImportError:
+        pass
+
 
 def register_error_handlers(app):
     """Register error handlers"""
