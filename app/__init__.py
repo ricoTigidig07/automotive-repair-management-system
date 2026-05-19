@@ -57,6 +57,10 @@ def create_app(config_name=None):
     from app.middleware.tenant import init_tenant_middleware
     init_tenant_middleware(app)
 
+    # Register API routes for desktop client authentication
+    from app.routes.api_routes import register_api_routes
+    register_api_routes(app)
+
     app.logger.info("Application initialization complete")
 
     return app

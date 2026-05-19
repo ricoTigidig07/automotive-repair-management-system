@@ -7,6 +7,7 @@ from datetime import datetime
 import logging
 from sqlalchemy import String, Boolean, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from werkzeug.security import generate_password_hash, check_password_hash
 from app.extensions import db
 from app.models.base import BaseModelMixin, TimestampMixin
 
@@ -219,6 +220,16 @@ class User(db.Model, BaseModelMixin, TimestampMixin):
         self.is_active = True
         db.session.commit()
         return True
+
+    def set_password(self, password: str) -> None:
+        """Hash and set the password using werkzeug"""
+        self.password_hash = generate_password_hash(password)
+    
+    def check_password(self, password: str) -> bool:
+        """Verify the password against the hash"""
+        if not self.password_hash:
+            return False
+        return check_password_hash(self.password_hash, password)
 
     @classmethod
     def get_by_role(cls, role: str) -> List['User']:
