@@ -766,7 +766,7 @@ def parts_catalog():
     # GET - load parts
     try:
         g.current_tenant_id = tenant_id
-        parts = Part.get_all_sorted()
+        parts = Part.get_active_sorted()
         return render_template('administrator/parts_catalog.html', parts=parts)
     except Exception as e:
         logger.error(f"Failed to load parts catalog: {e}")
