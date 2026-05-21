@@ -432,6 +432,50 @@ def customer_delete(customer_id):
         logger.error(f"Failed to delete customer: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+# =============================================================================
+# CUSTOMER ADD
+# =============================================================================
+
+@administrator_bp.route('/customers/add', methods=['POST'])
+@handle_database_errors
+def customer_add():
+    """Add a new customer via AJAX modal"""
+    redirect_response = require_admin_login()
+    if redirect_response:
+        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+    
+    try:
+        from app.models.customer import Customer
+        from app.extensions import db
+        from app.services.tenant_service import get_current_tenant_id
+        
+        tenant_id = get_current_tenant_id()
+        
+        # Validate required fields
+        first_name = sanitize_input(request.form.get('first_name'))
+        family_name = sanitize_input(request.form.get('family_name'))
+        email = sanitize_input(request.form.get('email'))
+        
+        if not first_name or not family_name or not email:
+            return jsonify({'success': False, 'error': 'First name, family name, and email are required'}), 400
+        
+        # Create new customer
+        customer = Customer(
+            tenant_id=tenant_id,
+            first_name=first_name,
+            family_name=family_name,
+            email=email,
+            phone=sanitize_input(request.form.get('phone', ''))
+        )
+        db.session.add(customer)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'customer_id': customer.customer_id})
+        
+    except Exception as e:
+        logger.error(f"Failed to add customer: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 # API endpoints
 @administrator_bp.route('/api/customers/<int:customer_id>/billing-summary')
 @handle_database_errors
