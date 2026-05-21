@@ -374,6 +374,63 @@ def reports():
         return render_template('administrator/reports.html',
                              report_data={})
 
+# =============================================================================
+# CUSTOMER EDIT/DELETE
+# =============================================================================
+
+@administrator_bp.route('/customers/<int:customer_id>/edit', methods=['GET', 'POST'])
+@handle_database_errors
+def customer_edit(customer_id):
+    """Edit customer information"""
+    redirect_response = require_admin_login()
+    if redirect_response:
+        return redirect_response
+    
+    customer = customer_service.get_customer_by_id(customer_id)
+    if not customer:
+        flash('Customer not found', 'error')
+        return redirect(url_for('administrator.customer_list'))
+    
+    if request.method == 'POST':
+        try:
+            # Update customer fields
+            from app.extensions import db
+            customer.first_name = sanitize_input(request.form.get('first_name'))
+            customer.family_name = sanitize_input(request.form.get('family_name'))
+            customer.email = sanitize_input(request.form.get('email'))
+            customer.phone = sanitize_input(request.form.get('phone'))
+            db.session.commit()
+            
+            flash('Customer updated successfully!', 'success')
+            return redirect(url_for('administrator.customer_list'))
+        except Exception as e:
+            logger.error(f"Failed to update customer: {e}")
+            flash('Failed to update customer', 'error')
+    
+    return render_template('administrator/customer_edit.html', customer=customer)
+
+
+@administrator_bp.route('/customers/<int:customer_id>/delete', methods=['POST'])
+@handle_database_errors
+def customer_delete(customer_id):
+    """Delete a customer"""
+    redirect_response = require_admin_login()
+    if redirect_response:
+        return redirect_response
+    
+    try:
+        customer = customer_service.get_customer_by_id(customer_id)
+        if not customer:
+            return jsonify({'success': False, 'error': 'Customer not found'}), 404
+        
+        from app.extensions import db
+        db.session.delete(customer)
+        db.session.commit()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Failed to delete customer: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # API endpoints
 @administrator_bp.route('/api/customers/<int:customer_id>/billing-summary')
