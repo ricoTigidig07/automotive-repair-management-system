@@ -93,6 +93,15 @@ def customer_list(page=1, per_page=20):
         return redirect_response
 
     try:
+        from app.models.service import Service
+        from app.models.part import Part
+        from app.models.job import Job
+        from app.models.customer import Customer
+        from app.extensions import db
+        from datetime import date
+        
+        tenant_id = session.get('current_tenant_id', 1)
+        
         # Get filter parameters
         filter_type = sanitize_input(request.args.get('filter', 'all'))
         search_query = sanitize_input(request.args.get('search', ''))
@@ -118,6 +127,22 @@ def customer_list(page=1, per_page=20):
                 customer_data['has_overdue'] = c.has_overdue_bills()
                 customers.append(customer_data)
 
+        # Get jobs with customer names
+        jobs = db.session.query(
+            Job.job_id, Job.job_date, Job.total_cost, Job.completed, Job.paid,
+            Customer.first_name, Customer.family_name, Customer.customer_id
+        ).join(Customer, Job.customer == Customer.customer_id).filter(
+            Job.tenant_id == tenant_id
+        ).all()
+        
+        # Get services
+        services = Service.query.filter_by(tenant_id=tenant_id, is_active=True).all()
+        
+        # Get parts
+        parts = Part.query.filter_by(tenant_id=tenant_id, is_active=True).all()
+        
+        today = date.today()
+
         # Simple pagination
         total = len(customers)
         start = (page - 1) * per_page
@@ -127,6 +152,10 @@ def customer_list(page=1, per_page=20):
 
         return render_template('administrator/customer_list.html',
                              customers=customers_page,
+                             jobs=jobs,
+                             services=services,
+                             parts=parts,
+                             today=today,
                              page=page,
                              per_page=per_page,
                              total=total,
@@ -139,12 +168,93 @@ def customer_list(page=1, per_page=20):
         flash('Failed to load customer list', 'error')
         return render_template('administrator/customer_list.html',
                              customers=[],
+                             jobs=[],
+                             services=[],
+                             parts=[],
+                             today=date.today(),
                              page=1,
                              per_page=per_page,
                              total=0,
                              total_pages=0,
                              filter_type='all',
                              search_query='')
+
+
+@administrator_bp.route('/service/add', methods=['POST'])
+@handle_database_errors
+def add_service():
+    """Add a new service"""
+    redirect_response = require_admin_login()
+    if redirect_response:
+        return redirect_response
+    
+    try:
+        from app.models.service import Service
+        from app.extensions import db
+        
+        tenant_id = session.get('current_tenant_id', 1)
+        
+        service_name = sanitize_input(request.form.get('service_name'))
+        service_cost = float(request.form.get('service_cost'))
+        
+        if not service_name:
+            flash('Service name is required', 'error')
+            return redirect(url_for('administrator.customer_list'))
+        
+        service = Service(
+            tenant_id=tenant_id,
+            service_name=service_name,
+            cost=service_cost,
+            is_active=True
+        )
+        db.session.add(service)
+        db.session.commit()
+        
+        flash(f'Service "{service_name}" added successfully!', 'success')
+        
+    except Exception as e:
+        logger.error(f"Failed to add service: {e}")
+        flash('Failed to add service', 'error')
+    
+    return redirect(url_for('administrator.customer_list'))
+
+@administrator_bp.route('/part/add', methods=['POST'])
+@handle_database_errors
+def add_part():
+    """Add a new part"""
+    redirect_response = require_admin_login()
+    if redirect_response:
+        return redirect_response
+    
+    try:
+        from app.models.part import Part
+        from app.extensions import db
+        
+        tenant_id = session.get('current_tenant_id', 1)
+        
+        part_name = sanitize_input(request.form.get('part_name'))
+        part_cost = float(request.form.get('part_cost'))
+        
+        if not part_name:
+            flash('Part name is required', 'error')
+            return redirect(url_for('administrator.customer_list'))
+        
+        part = Part(
+            tenant_id=tenant_id,
+            part_name=part_name,
+            cost=part_cost,
+            is_active=True
+        )
+        db.session.add(part)
+        db.session.commit()
+        
+        flash(f'Part "{part_name}" added successfully!', 'success')
+        
+    except Exception as e:
+        logger.error(f"Failed to add part: {e}")
+        flash('Failed to add part', 'error')
+    
+    return redirect(url_for('administrator.customer_list'))
 
 
 @administrator_bp.route('/billing')

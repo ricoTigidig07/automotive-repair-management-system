@@ -8,7 +8,6 @@ from flask import (
 )
 import logging
 import requests as http_requests
-from datetime import datetime
 from app.services.auth_service import AuthService, neon_auth
 from app.models.user import User
 from app.extensions import db
@@ -23,15 +22,19 @@ logger = logging.getLogger(__name__)
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
+    """User login page"""
     if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
         
+        # Find user by email
         from app.models.user import User
-        from datetime import datetime
+        from werkzeug.security import check_password_hash
         
         user = User.query.filter_by(email=email).first()
+        
         if not user:
+            # Try by username
             user = User.query.filter_by(username=email).first()
         
         if user and user.check_password(password):
@@ -39,18 +42,20 @@ def login():
             session['user_id'] = user.user_id
             session['username'] = user.username
             session['email'] = user.email
-            session['current_role'] = 'owner'
-            session['current_tenant_id'] = 1
             
-            user.last_login = datetime.utcnow()
-            db.session.commit()
-            
-            flash(f'Welcome back, {user.username}!', 'success')
-            return redirect(url_for('administrator.dashboard'))
+            # Set role
+            if user.is_superadmin:
+                session['current_role'] = 'owner'
+                session['current_tenant_id'] = user.get_default_tenant_id()
+                return redirect(url_for('administrator.dashboard'))
+            else:
+                session['current_role'] = 'technician'
+                return redirect(url_for('technician.dashboard'))
         else:
             flash('Invalid email or password', 'error')
     
     return render_template('auth/login.html')
+
 
 # =============================================================================
 # NEON AUTH CALLBACK ROUTES
