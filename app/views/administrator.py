@@ -883,7 +883,29 @@ def inventory_adjust():
 
     return redirect(url_for('administrator.inventory'))
 
+# =============================================================================
+# URL ALIASES FOR BACKWARD COMPATIBILITY (Sidebar navigation)
+# =============================================================================
 
+@administrator_bp.route('/service-catalog')
+def service_catalog_alias():
+    """Alias for service catalog - redirects to services"""
+    return redirect(url_for('administrator.services'))
+
+@administrator_bp.route('/parts-catalog')
+def parts_catalog_alias():
+    """Alias for parts catalog - redirects to parts"""
+    return redirect(url_for('administrator.parts'))
+
+@administrator_bp.route('/team-members')
+def team_members_alias():
+    """Alias for team members - redirects to team"""
+    return redirect(url_for('administrator.team'))
+
+@administrator_bp.route('/org-settings')
+def org_settings_alias():
+    """Alias for org settings - redirects to settings"""
+    return redirect(url_for('administrator.settings'))
 # =============================================================================
 # SUBSCRIPTION MANAGEMENT
 # =============================================================================
