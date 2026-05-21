@@ -256,6 +256,56 @@ def add_part():
     
     return redirect(url_for('administrator.customer_list'))
 
+@administrator_bp.route('/schedule-job', methods=['POST'])
+@handle_database_errors
+def schedule_job():
+    """Schedule a new job for a customer"""
+    redirect_response = require_admin_login()
+    if redirect_response:
+        return redirect_response
+    
+    try:
+        from app.models.job import Job
+        from app.models.customer import Customer
+        from app.extensions import db
+        from datetime import datetime
+        
+        # Get the selected customer ID from the form
+        # The customer is selected by clicking the radio button or selecting from table
+        customer_id = request.form.get('customer_id')
+        job_date = request.form.get('job_date')
+        
+        if not customer_id:
+            flash('Please select a customer first', 'error')
+            return redirect(url_for('administrator.customer_list'))
+        
+        if not job_date:
+            flash('Please select a job date', 'error')
+            return redirect(url_for('administrator.customer_list'))
+        
+        tenant_id = session.get('current_tenant_id', 1)
+        
+        # Create new job
+        job = Job(
+            tenant_id=tenant_id,
+            customer=int(customer_id),
+            job_date=datetime.strptime(job_date, '%Y-%m-%d').date(),
+            total_cost=0.00,
+            completed=False,
+            paid=False,
+            assigned_to=session.get('user_id')
+        )
+        db.session.add(job)
+        db.session.commit()
+        
+        flash(f'Job scheduled successfully for {job_date}!', 'success')
+        
+    except Exception as e:
+        logger.error(f"Failed to schedule job: {e}")
+        flash('Failed to schedule job', 'error')
+    
+    return redirect(url_for('administrator.customer_list'))
+
 
 @administrator_bp.route('/billing')
 @handle_database_errors
