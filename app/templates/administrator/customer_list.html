@@ -14,20 +14,12 @@ Customer Management - Administrator Portal
                         <i class="ti ti-users text-primary"></i>
                         Customer Management
                     </h1>
-                    <p class="text-muted mb-0">Manage customers and track work orders</p>
+                    <p class="text-muted mb-0">Manage customers and schedule jobs</p>
                 </div>
                 <div class="d-flex gap-2">
                     <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
                         <i class="ti ti-user-plus me-1"></i>
                         Add Customer
-                    </button>
-                    <button class="btn btn-accent" data-bs-toggle="modal" data-bs-target="#addServiceModal">
-                        <i class="ti ti-settings me-1"></i>
-                        Add Service
-                    </button>
-                    <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#addPartModal">
-                        <i class="ti ti-puzzle me-1"></i>
-                        Add Part
                     </button>
                 </div>
             </div>
@@ -36,7 +28,7 @@ Customer Management - Administrator Portal
 
     <!-- Statistics Cards -->
     <div class="row mb-4">
-        <div class="col-sm-6 col-lg-3">
+        <div class="col-sm-6 col-lg-4">
             <div class="card">
                 <div class="card-body">
                     <div class="d-flex align-items-center mb-2">
@@ -47,7 +39,7 @@ Customer Management - Administrator Portal
                 </div>
             </div>
         </div>
-        <div class="col-sm-6 col-lg-3">
+        <div class="col-sm-6 col-lg-4">
             <div class="card">
                 <div class="card-body">
                     <div class="d-flex align-items-center mb-2">
@@ -58,31 +50,20 @@ Customer Management - Administrator Portal
                 </div>
             </div>
         </div>
-        <div class="col-sm-6 col-lg-3">
+        <div class="col-sm-6 col-lg-4">
             <div class="card">
                 <div class="card-body">
                     <div class="d-flex align-items-center mb-2">
-                        <span class="badge bg-info-lt me-2"><i class="ti ti-settings"></i></span>
-                        <div class="subheader">Available Services</div>
+                        <span class="badge bg-warning-lt me-2"><i class="ti ti-currency-dollar"></i></span>
+                        <div class="subheader">Total Revenue</div>
                     </div>
-                    <div class="h1 mb-0">{{ services|length }}</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-sm-6 col-lg-3">
-            <div class="card">
-                <div class="card-body">
-                    <div class="d-flex align-items-center mb-2">
-                        <span class="badge bg-warning-lt me-2"><i class="ti ti-puzzle"></i></span>
-                        <div class="subheader">Available Parts</div>
-                    </div>
-                    <div class="h1 mb-0">{{ parts|length }}</div>
+                    <div class="h1 mb-0">${{ "%.2f"|format(total_revenue|default(0)) }}</div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Customer List Section -->
+    <!-- Customer List and Schedule Job Section -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
@@ -93,66 +74,84 @@ Customer Management - Administrator Portal
                     </h5>
                 </div>
                 <div class="card-body p-4">
-                    <!-- Search Form -->
-                    <form method="post" action="/administrator_customer_list" class="mb-4">
-                        <div class="row g-3">
-                            <div class="col-md-3">
-                                <label class="form-label">Search By</label>
-                                <select class="form-select" name="customer_search">
-                                    <option value="">Select field...</option>
-                                    <option value="first_name">First Name</option>
-                                    <option value="family_name">Family Name</option>
-                                </select>
-                            </div>
+                    <div class="table-responsive">
+                        <!-- Search Bar -->
+                        <div class="row mb-3">
                             <div class="col-md-6">
-                                <label class="form-label">Search Text</label>
-                                <input type="text" class="form-control" name="search_text" placeholder="Enter search term...">
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white">
+                                        <i class="ti ti-search"></i>
+                                    </span>
+                                    <input type="text" id="searchCustomerInput" class="form-control" placeholder="Search by name, email, or phone...">
+                                    <button class="btn btn-outline-secondary" type="button" id="clearSearchBtn">
+                                        <i class="ti ti-x"></i> Clear
+                                    </button>
+                                </div>
                             </div>
-                            <div class="col-md-3 d-flex align-items-end">
-                                <button class="btn btn-outline-primary w-100" type="submit">
-                                    <i class="ti ti-search me-1"></i>
-                                    Search
-                                </button>
+                            <div class="col-md-6 text-end">
+                                <span id="searchResultCount" class="text-muted">Loading customers...</span>
                             </div>
                         </div>
-                    </form>
 
-                    <!-- Customer List Table -->
-                    <div class="table-responsive">
                         <table class="table table-vcenter card-table" id="customer-table">
                             <thead>
                                 <tr>
+                                    <th>Select</th>
                                     <th>Name</th>
                                     <th>Email</th>
                                     <th>Phone</th>
-                                    <th>Total Unpaid</th>
-                                    <th>Has Overdue</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>        
                             <tbody>
                                 {% for customer in customers %}
-                                <tr>
-                                    <td>{{ customer.first_name }} {{ customer.family_name }}</td>
-                                    <td>{{ customer.email }}</td>
-                                    <td>{{ customer.phone or '-' }}</td>
-                                    <td>${{ "%.2f"|format(customer.total_unpaid|default(0)) }}</td>
-                                    <td>
-                                        {% if customer.has_overdue %}
-                                        <span class="badge bg-danger">Overdue</span>
-                                        {% else %}
-                                        <span class="badge bg-success">Current</span>
-                                        {% endif %}
+                                <tr data-customer-id="{{ customer.customer_id }}">
+                                    <td style="width: 50px; text-align: center;">
+                                        <input type="radio" name="selected_customer" class="customer-select" value="{{ customer.customer_id }}" data-name="{{ customer.first_name }} {{ customer.family_name }}">
                                     </td>
+                                    <td>{{ customer.first_name }} {{ customer.family_name }}</a>
+                                    <td>{{ customer.email }}</a>
+                                    <td>{{ customer.phone or '-' }}</a>
                                     <td class="actions">
                                         <a href="{{ url_for('administrator.customer_edit', customer_id=customer.customer_id) }}" class="btn btn-sm btn-warning">Edit</a>
                                         <button onclick="deleteCustomer('{{ customer.customer_id }}')" class="btn btn-sm btn-danger">Delete</button>
-                                     </a>
-                                    </td>
+                                    </a>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
+
+                        <!-- SCHEDULE JOB FORM -->
+                        <div class="row mt-4 p-4 border rounded" style="background-color: #f8f9fa;">
+                            <div class="col-12 mb-3">
+                                <h5 class="fw-bold"><i class="ti ti-calendar-plus me-2"></i>Schedule New Job</h5>
+                                <hr>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Selected Customer</label>
+                                <input type="text" class="form-control" id="selected_customer_display" readonly placeholder="Click radio button to select customer" style="background-color: #e9ecef;">
+                                <input type="hidden" id="selected_customer_id">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Job Date</label>
+                                <input type="date" class="form-control" id="job_date" min="{{ today }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Select Service (Optional)</label>
+                                <select class="form-select" id="service_id">
+                                    <option value="">-- No Service --</option>
+                                    {% for service in services %}
+                                    <option value="{{ service.service_id }}" data-cost="{{ service.cost }}">{{ service.service_name }} - ${{ "%.2f"|format(service.cost|float) }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button class="btn btn-primary w-100" onclick="scheduleJob()">
+                                    <i class="ti ti-calendar-plus me-1"></i>
+                                    Schedule Job
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -186,56 +185,27 @@ Customer Management - Administrator Portal
                             <tbody>
                                 {% for job in jobs %}
                                 <tr>
+                                    <td><span class="badge bg-primary">#{{ job.job_id }}</span></a>
+                                    <td><strong>{{ job.first_name }} {{ job.family_name }}</strong></a>
+                                    <td>{{ job.job_date }}</a>
+                                    <td>${{ "%.2f"|format(job.total_cost|float) }}</a>
                                     <td>
-                                        <span class="badge bg-primary">#{{ job.job_id }}</span>
-                                    </a>
-                                    <td>
-                                        <div class="d-flex align-items-center">
-                                            <i class="ti ti-user text-primary me-2"></i>
-                                            <div>
-                                                <strong>{{ job.first_name }} {{ job.family_name }}</strong>
-                                                <small class="text-muted d-block">ID: {{ job.customer_id }}</small>
-                                            </div>
-                                        </div>
-                                    </a>
-                                    <td>
-                                        <span class="d-flex align-items-center gap-1">
-                                            <i class="ti ti-calendar text-muted"></i>
-                                            {{ job.job_date }}
-                                        </span>
-                                    </a>
-                                    <td>
-                                        <span class="fw-bold text-success">${{ "%.2f"|format(job.total_cost|float) }}</span>
-                                    </a>
-                                    <td>
-                                        {% if job.completed == 1 %}
-                                            <span class="badge bg-success">
-                                                <i class="ti ti-circle-check me-1"></i>
-                                                Completed
-                                            </span>
+                                        {% if job.completed %}
+                                        <span class="badge bg-success">Completed</span>
                                         {% else %}
-                                            <span class="badge bg-warning">
-                                                <i class="ti ti-clock me-1"></i>
-                                                In Progress
-                                            </span>
+                                        <span class="badge bg-warning">In Progress</span>
                                         {% endif %}
                                     </a>
                                     <td>
-                                        {% if job.paid == 1 %}
-                                            <span class="badge bg-success">
-                                                <i class="ti ti-credit-card me-1"></i>
-                                                Paid
-                                            </span>
+                                        {% if job.paid %}
+                                        <span class="badge bg-success">Paid</span>
                                         {% else %}
-                                            <span class="badge bg-danger">
-                                                <i class="ti ti-alert-triangle me-1"></i>
-                                                Unpaid
-                                            </span>
+                                        <span class="badge bg-danger">Unpaid</span>
                                         {% endif %}
                                     </a>
                                     <td>
                                         <a href="{{ url_for('technician.modify_job', job_id=job.job_id) }}" class="btn btn-sm btn-outline-primary">
-                                            <i class="ti ti-pencil"></i>
+                                            <i class="ti ti-pencil"></i> Edit
                                         </a>
                                     </a>
                                 </tr>
@@ -280,29 +250,7 @@ Customer Management - Administrator Portal
                             <input type="text" class="form-control" name="phone" placeholder="Contact number">
                         </div>
                     </div>
-
-                    <!-- Current Customers List (optional) -->
-                    <div class="mt-4">
-                        <h6 class="text-muted">Recent Customers</h6>
-                        <div class="table-responsive">
-                            <table class="table table-sm">
-                                <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Email</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for customer in customers[:5] %}
-                                    <tr>
-                                        <td>{{ customer.first_name }} {{ customer.family_name }}</td>
-                                        <td>{{ customer.email }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                    <div id="addCustomerError" class="alert alert-danger d-none mt-3"></div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -316,135 +264,144 @@ Customer Management - Administrator Portal
     </div>
 </div>
 
-<!-- Add Service Modal -->
-<div class="modal fade" id="addServiceModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content" style="border-top: 4px solid var(--accent);">
-            <div class="modal-header">
-                <h5 class="modal-title d-flex align-items-center gap-2">
-                    <i class="ti ti-settings"></i>
-                    Add New Service
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form action="{{ url_for('administrator.add_service') }}" method="post">
-                <div class="modal-body">
-                    <div class="row g-3">
-                        <div class="col-12">
-                            <label class="form-label">Service Name *</label>
-                            <input type="text" class="form-control" name="service_name" required placeholder="Enter service name">
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label">Service Cost *</label>
-                            <div class="input-group">
-                                <span class="input-group-text">$</span>
-                                <input type="number" class="form-control" name="service_cost" step="0.01" min="0" required placeholder="0.00">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-accent">
-                        <i class="ti ti-plus me-1"></i>
-                        Add Service
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Add Part Modal -->
-<div class="modal fade" id="addPartModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content" style="border-top: 4px solid var(--warning);">
-            <div class="modal-header">
-                <h5 class="modal-title d-flex align-items-center gap-2">
-                    <i class="ti ti-puzzle"></i>
-                    Add New Part
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form action="{{ url_for('administrator.add_part') }}" method="post">
-                <div class="modal-body">
-                    <div class="row g-3">
-                        <div class="col-12">
-                            <label class="form-label">Part Name *</label>
-                            <input type="text" class="form-control" name="part_name" required placeholder="Enter part name">
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label">Part Cost *</label>
-                            <div class="input-group">
-                                <span class="input-group-text">$</span>
-                                <input type="number" class="form-control" name="part_cost" step="0.01" min="0" required placeholder="0.00">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Current Parts -->
-                    <div class="mt-4">
-                        <h6 class="text-muted">Current Parts</h6>
-                        <div class="table-responsive">
-                            <table class="table table-sm">
-                                <thead>
-                                    <tr>
-                                        <th>Part</th>
-                                        <th>Cost</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for part in parts %}
-                                    <tr>
-                                        <td>{{ part.part_name }}</td>
-                                        <td>${{ "%.2f"|format(part.cost|float) }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-warning">
-                        <i class="ti ti-plus me-1"></i>
-                        Add Part
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
 <script>
-// Add Customer via AJAX
-const addForm = document.getElementById('addCustomerForm');
-if (addForm) {
-    addForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        const formData = new FormData(this);
-        const errorDiv = document.getElementById('addCustomerError');
-        
-        fetch('{{ url_for("administrator.customer_add") }}', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
+// Custom Toast Notification function
+function showToast(message, type = 'info') {
+    const toastContainer = document.getElementById('toast-container') || (() => {
+        let container = document.createElement('div');
+        container.id = 'toast-container';
+        container.style.position = 'fixed';
+        container.style.top = '20px';
+        container.style.right = '20px';
+        container.style.zIndex = '9999';
+        document.body.appendChild(container);
+        return container;
+    })();
+    
+    const toast = document.createElement('div');
+    toast.className = `toast-notification ${type}`;
+    
+    let icon = '';
+    switch(type) {
+        case 'success': icon = '✓'; break;
+        case 'error': icon = '✗'; break;
+        case 'warning': icon = '⚠'; break;
+        default: icon = 'ℹ';
+    }
+    
+    toast.innerHTML = `
+        <div class="toast-content">
+            <div class="toast-icon ${type}">${icon}</div>
+            <div class="toast-message">${message}</div>
+            <button class="toast-close" onclick="this.closest('.toast-notification').remove()">×</button>
+        </div>
+    `;
+    
+    toastContainer.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.classList.add('fade-out');
+        setTimeout(() => { if (toast.parentNode) toast.remove(); }, 300);
+    }, 4000);
+}
+
+// Real-time customer search
+(function() {
+    const searchInput = document.getElementById('searchCustomerInput');
+    const customerRows = document.querySelectorAll('#customer-table tbody tr');
+    const resultCountSpan = document.getElementById('searchResultCount');
+    
+    if (!searchInput) return;
+    
+    function updateResultCount(visible, total) {
+        if (resultCountSpan) {
+            if (searchInput.value.trim() === '') {
+                resultCountSpan.textContent = `Showing all ${total} customers`;
             } else {
-                errorDiv.textContent = data.error || 'Failed to add customer';
-                errorDiv.classList.remove('d-none');
+                resultCountSpan.textContent = `Found ${visible} of ${total} customers`;
             }
-        })
-        .catch(error => {
-            errorDiv.textContent = 'Network error: ' + error;
-            errorDiv.classList.remove('d-none');
+        }
+    }
+    
+    function filterCustomers() {
+        const searchTerm = searchInput.value.toLowerCase().trim();
+        let visibleCount = 0;
+        const totalCount = customerRows.length;
+        
+        customerRows.forEach(row => {
+            const name = (row.querySelector('td:nth-child(2)')?.textContent || '').toLowerCase();
+            const email = (row.querySelector('td:nth-child(3)')?.textContent || '').toLowerCase();
+            const phone = (row.querySelector('td:nth-child(4)')?.textContent || '').toLowerCase();
+            
+            const matches = searchTerm === '' || 
+                           name.includes(searchTerm) || 
+                           email.includes(searchTerm) || 
+                           phone.includes(searchTerm);
+            
+            row.style.display = matches ? '' : 'none';
+            if (matches) visibleCount++;
         });
+        
+        updateResultCount(visibleCount, totalCount);
+    }
+    
+    searchInput.addEventListener('input', filterCustomers);
+    
+    const clearBtn = document.getElementById('clearSearchBtn');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function() {
+            searchInput.value = '';
+            filterCustomers();
+            searchInput.focus();
+        });
+    }
+    
+    updateResultCount(customerRows.length, customerRows.length);
+})();
+
+// Customer selection for scheduling
+document.querySelectorAll('.customer-select').forEach(radio => {
+    radio.addEventListener('change', function() {
+        document.getElementById('selected_customer_id').value = this.value;
+        const customerName = this.getAttribute('data-name');
+        document.getElementById('selected_customer_display').value = customerName;
     });
+});
+
+// Schedule Job function
+function scheduleJob() {
+    const customerId = document.getElementById('selected_customer_id').value;
+    const jobDate = document.getElementById('job_date').value;
+    const serviceId = document.getElementById('service_id').value;
+    
+    if (!customerId) {
+        showToast('Please select a customer first', 'warning');
+        return;
+    }
+    if (!jobDate) {
+        showToast('Please select a job date', 'warning');
+        return;
+    }
+    
+    fetch('/administrator/schedule-job', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            customer_id: parseInt(customerId),
+            job_date: jobDate,
+            service_id: serviceId ? parseInt(serviceId) : null
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Job scheduled successfully!', 'success');
+            location.reload();
+        } else {
+            showToast('Error: ' + (data.error || 'Unknown error'), 'error');
+        }
+    })
+    .catch(error => showToast('Network error: ' + error, 'error'));
 }
 
 // Delete Customer function
@@ -452,20 +409,136 @@ function deleteCustomer(customerId) {
     if(confirm('Are you sure you want to delete this customer?')) {
         fetch('/administrator/customers/' + customerId + '/delete', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
+            headers: { 'Content-Type': 'application/json' }
         })
         .then(response => response.json())
         .then(data => {
             if(data.success) {
+                showToast('Customer deleted successfully!', 'success');
                 location.reload();
             } else {
-                alert('Error deleting customer: ' + (data.error || 'Unknown error'));
+                showToast('Error deleting customer', 'error');
             }
         })
-        .catch(error => alert('Network error: ' + error));
+        .catch(error => showToast('Network error: ' + error, 'error'));
     }
 }
+
+// Add Customer via AJAX
+const addForm = document.getElementById('addCustomerForm');
+if (addForm) {
+    addForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        fetch('{{ url_for("administrator.customer_add") }}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('Customer added successfully!', 'success');
+                location.reload();
+            } else {
+                showToast('Error: ' + data.error, 'error');
+            }
+        })
+        .catch(error => showToast('Network error: ' + error, 'error'));
+    });
+}
 </script>
+
+<style>
+#customer-table tbody tr:hover {
+    background-color: #f5f5f5;
+    cursor: pointer;
+}
+.customer-select {
+    cursor: pointer;
+}
+
+/* Custom Toast Notifications */
+.toast-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    min-width: 300px;
+    max-width: 400px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    overflow: hidden;
+    animation: slideInRight 0.3s ease-out;
+    margin-bottom: 10px;
+}
+
+.toast-notification.success {
+    border-left: 4px solid #28a745;
+}
+.toast-notification.error {
+    border-left: 4px solid #dc3545;
+}
+.toast-notification.warning {
+    border-left: 4px solid #ffc107;
+}
+.toast-notification.info {
+    border-left: 4px solid #17a2b8;
+}
+
+.toast-content {
+    padding: 15px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.toast-icon {
+    font-size: 24px;
+}
+.toast-icon.success { color: #28a745; }
+.toast-icon.error { color: #dc3545; }
+.toast-icon.warning { color: #ffc107; }
+.toast-icon.info { color: #17a2b8; }
+
+.toast-message {
+    flex: 1;
+    font-size: 14px;
+    color: #333;
+}
+
+.toast-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: #999;
+    padding: 0 5px;
+}
+.toast-close:hover {
+    color: #333;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    to {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+}
+
+.toast-notification.fade-out {
+    animation: fadeOut 0.3s ease-out forwards;
+}
+</style>
 {% endblock %}

@@ -13,103 +13,36 @@
 {% endblock %}
 
 {% block content %}
-<!-- Page Header -->
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1 class="h3 fw-bold text-gray-900 mb-2 d-flex align-items-center gap-2">
-            <i class="ti ti-circle-plus text-primary"></i>
-            Create New Job
-        </h1>
-        <p class="text-muted mb-0">Start a new work order for a customer</p>
-    </div>
-    <div>
-        <a href="{{ url_for('technician.current_jobs') }}" class="btn btn-outline-secondary">
-            <i class="ti ti-arrow-left me-2"></i>Back to Jobs
-        </a>
-    </div>
-</div>
-
-<!-- New Job Form -->
-<div class="row justify-content-center">
-    <div class="col-lg-8">
-        <div class="card">
-            <div class="card-header">
-                <h3 class="card-title">
-                    <i class="ti ti-file-plus me-2"></i>
-                    Job Details
-                </h3>
-            </div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('technician.new_job') }}" id="newJobForm">
-                    <!-- Customer Selection -->
-                    <div class="mb-4">
-                        <label for="customer_id" class="form-label fw-semibold">
-                            <i class="ti ti-user me-1"></i>
-                            Customer
-                        </label>
-                        <select class="form-select" id="customer_id" name="customer_id" required>
-                            <option value="">Select a customer...</option>
-                            {% for customer in customers %}
-                            <option value="{{ customer.customer_id }}">
-                                {{ customer.first_name }} {{ customer.family_name }}
-                                {% if customer.email %} ({{ customer.email }}){% endif %}
-                            </option>
-                            {% endfor %}
-                        </select>
-                        <div class="form-text">
-                            <i class="ti ti-info-circle me-1"></i>
-                            Choose the customer for this work order.
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="ti ti-plus me-2"></i>Create New Job</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label class="form-label">Select Customer *</label>
+                            <select class="form-select" name="customer_id" required>
+                                <option value="">-- Select Customer --</option>
+                                {% for customer in customers %}
+                                <option value="{{ customer.customer_id }}">{{ customer.first_name }} {{ customer.family_name }} ({{ customer.email }})</option>
+                                {% endfor %}
+                            </select>
                         </div>
-                    </div>
-
-                    <!-- Job Date -->
-                    <div class="mb-4">
-                        <label for="job_date" class="form-label fw-semibold">
-                            <i class="ti ti-calendar me-1"></i>
-                            Job Date
-                        </label>
-                        <input type="date" class="form-control" id="job_date" name="job_date"
-                               min="{{ min_date }}" required>
-                        <div class="form-text">
-                            <i class="ti ti-info-circle me-1"></i>
-                            Select the date for this work order.
+                        <div class="mb-3">
+                            <label class="form-label">Job Date *</label>
+                            <input type="date" class="form-control" name="job_date" value="{{ today }}" min="{{ today }}" required>
                         </div>
-                    </div>
-
-                    <!-- Form Actions -->
-                    <div class="d-flex justify-content-end gap-2 pt-3 border-top">
-                        <a href="{{ url_for('technician.current_jobs') }}" class="btn btn-outline-secondary">
-                            <i class="ti ti-x me-1"></i>Cancel
-                        </a>
-                        <button type="submit" class="btn btn-accent">
-                            <i class="ti ti-plus me-1"></i>Create Job
-                        </button>
-                    </div>
-                </form>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">Create Job</button>
+                            <a href="{{ url_for('technician.current_jobs') }}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
 </div>
-
-<!-- Flash Message Display -->
-{% if message %}
-<div class="alert alert-warning alert-dismissible fade show mt-3 d-flex align-items-center gap-2" role="alert">
-    <i class="ti ti-alert-triangle"></i>
-    {{ message }}
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
-{% endif %}
-{% endblock %}
-
-{% block extra_js %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Set default date to today
-    const dateInput = document.getElementById('job_date');
-    if (dateInput && !dateInput.value) {
-        const today = new Date().toISOString().split('T')[0];
-        dateInput.value = today;
-    }
-});
-</script>
 {% endblock %}

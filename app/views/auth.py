@@ -23,17 +23,23 @@ logger = logging.getLogger(__name__)
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
+    """User login page"""
     if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
         
         from app.models.user import User
+        from app.extensions import db
         from datetime import datetime
         
+        # Find user by email
         user = User.query.filter_by(email=email).first()
+        
+        # If not found by email, try username
         if not user:
             user = User.query.filter_by(username=email).first()
         
+        # Check if user exists and password is correct
         if user and user.check_password(password):
             session['logged_in'] = True
             session['user_id'] = user.user_id

@@ -257,55 +257,66 @@ def add_part():
     return redirect(url_for('administrator.customer_list'))
 
 @administrator_bp.route('/schedule-job', methods=['POST'])
-@handle_database_errors
 def schedule_job():
-    """Schedule a new job for a customer"""
-    redirect_response = require_admin_login()
-    if redirect_response:
-        return redirect_response
-    
+    """Schedule a job for a customer"""
     try:
+        from flask import request, jsonify
         from app.models.job import Job
-        from app.models.customer import Customer
+        from app.models.service import Service
         from app.extensions import db
         from datetime import datetime
         
-        # Get the selected customer ID from the form
-        # The customer is selected by clicking the radio button or selecting from table
-        customer_id = request.form.get('customer_id')
-        job_date = request.form.get('job_date')
+        data = request.get_json()
         
-        if not customer_id:
-            flash('Please select a customer first', 'error')
-            return redirect(url_for('administrator.customer_list'))
+        customer_id = data.get('customer_id')
+        job_date = data.get('job_date')
+        service_id = data.get('service_id')
         
-        if not job_date:
-            flash('Please select a job date', 'error')
-            return redirect(url_for('administrator.customer_list'))
+        if not customer_id or not job_date:
+            return jsonify({'success': False, 'error': 'Customer and date required'}), 400
         
         tenant_id = session.get('current_tenant_id', 1)
         
-        # Create new job
+        total_cost = 0.00
+        
+        # Get service cost if selected
+        if service_id:
+            service = Service.query.get(service_id)
+            if service:
+                total_cost = float(service.cost)
+        
         job = Job(
             tenant_id=tenant_id,
-            customer=int(customer_id),
+            customer=customer_id,
             job_date=datetime.strptime(job_date, '%Y-%m-%d').date(),
-            total_cost=0.00,
+            total_cost=total_cost,
             completed=False,
-            paid=False,
-            assigned_to=session.get('user_id')
+            paid=False
         )
         db.session.add(job)
         db.session.commit()
         
-        flash(f'Job scheduled successfully for {job_date}!', 'success')
+        # If service was selected, create job_service entry
+        if service_id and service:
+            try:
+                from app.models.job_service import JobService
+                job_service = JobService(
+                    job_id=job.job_id,
+                    service_id=service_id,
+                    qty=1
+                )
+                db.session.add(job_service)
+                db.session.commit()
+            except ImportError:
+                # If JobService model doesn't exist, just skip
+                pass
+        
+        return jsonify({'success': True, 'job_id': job.job_id, 'total_cost': total_cost})
         
     except Exception as e:
-        logger.error(f"Failed to schedule job: {e}")
-        flash('Failed to schedule job', 'error')
-    
-    return redirect(url_for('administrator.customer_list'))
-
+        print(f"Error scheduling job: {e}")
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @administrator_bp.route('/billing')
 @handle_database_errors
