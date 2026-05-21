@@ -447,9 +447,9 @@ def customer_add():
     try:
         from app.models.customer import Customer
         from app.extensions import db
-        from app.services.tenant_service import get_current_tenant_id
         
-        tenant_id = get_current_tenant_id()
+        # Get tenant_id from session (use 1 as default)
+        tenant_id = session.get('current_tenant_id', 1)
         
         # Validate required fields
         first_name = sanitize_input(request.form.get('first_name'))
